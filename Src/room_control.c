@@ -22,11 +22,15 @@ void room_control_app_init(void)
     gpio_write_pin(EXTERNAL_LED_ONOFF_PORT, EXTERNAL_LED_ONOFF_PIN, GPIO_PIN_RESET);
     g_door_open = 0;
     g_door_open_tick = 0;
+    uart2_send_string(" Controlador de Sala v1.0 \r\n Desarrollador: Angelica Dayanna Benavides O \r\n");
+    uart2_send_string(" -Estado inicial: Lampara brillo al 20%  \r\n");
+    uart2_send_string(" -Puerta: cerrada \r\n");
 
     tim3_ch1_pwm_set_duty_cycle(20); // Lámpara al 20%
 }
 
 void room_control_on_button_press(void)
+
 {
     uint32_t now = systick_get_tick();
     if (now - g_last_button_tick < 50) return;  // Anti-rebote de 50 ms
@@ -82,6 +86,22 @@ void room_control_on_uart_receive(char cmd)
             uart2_send_string("Puerta cerrada remotamente.\r\n");
             break;
 
+        case 's':
+        case 'S':
+            uart2_send_string("Estado del sistema:\r\n");
+            uart2_send_string(g_door_open ? "Puerta: abierta\r\n" : "Puerta: cerrada\r\n");
+            uart2_send_string("Brillo de la lámpara: ");
+            break;
+       
+            case '?':
+            uart2_send_string("Comandos disponibles:\r\n");
+            uart2_send_string("'1' - '4' ajustar el brillo de la lampara (100%, 70%, 50%, 20%)\r\n");
+            uart2_send_string("'0' : Apagar lámpara\r\n");
+            uart2_send_string("'o' : Abrir puerta\r\n");
+            uart2_send_string("'c' : Cerrar puerta\r\n");
+            uart2_send_string("'s' : Estado del sistema");
+            uart2_send_string("'?' : Mostrar comandos\r\n");
+            break;
         default:
             uart2_send_string("Comando desconocido.\r\n");
             break;
@@ -92,6 +112,8 @@ void room_control_tick(void)
 {
     if (g_door_open && (systick_get_tick() - g_door_open_tick >= 3000)) {
         gpio_write_pin(EXTERNAL_LED_ONOFF_PORT, EXTERNAL_LED_ONOFF_PIN, GPIO_PIN_RESET);
+        gpio_write_pin(EXTERNAL_LED_PWM_PORT, EXTERNAL_LED_PWM_PIN, GPIO_PIN_RESET);
+        tim3_ch1_pwm_set_duty_cycle(100);
         uart2_send_string("Puerta cerrada automáticamente tras 3 segundos.\r\n");
         g_door_open = 0;
     }
